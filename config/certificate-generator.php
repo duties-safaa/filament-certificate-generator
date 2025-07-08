@@ -11,6 +11,13 @@ return [
         "issue-date"=>"Issue Date",
         "hours"=>"Hours",
         "signature"=>"Signature",
+
+    ],
+    "default_options"=>[
+        "StudentEnglishName"=>"اسم الطالب انجليزي",
+        "TrainerArabicName"=>"اسم المدرب عربي",
+        "TrainerEnglishName"=>"اسم المدرب انجليزي",
+        "Hours"=>"Hours",
     ],
 
     'types' => [
@@ -20,6 +27,7 @@ return [
             'color' => 'emerald',
             'icon' => 'heroicon-o-academic-cap',
         ],
+
         'participation' => [
             'label' => 'Participation Attestation',
             'description' => 'Verification of attendance and engagement in learning activities without formal assessment',

@@ -161,6 +161,7 @@ class FilamentCertificateGeneratorServiceProvider extends PackageServiceProvider
     {
         return [
             'create_filament-certificate-generator_table',
+            'update_certificate_templates_table_add_type_and_default_val'
         ];
     }
 }
