@@ -13,6 +13,22 @@ return [
         "signature"=>"Signature",
     ],
 
+    'types' => [
+        'qualification' => [
+            'label' => 'Qualification Certification',
+            'description' => 'Formal attestation of completed academic requirements conferring a degree, diploma, or formal qualification',
+            'color' => 'emerald',
+            'icon' => 'heroicon-o-academic-cap',
+        ],
+        'participation' => [
+            'label' => 'Participation Attestation',
+            'description' => 'Verification of attendance and engagement in learning activities without formal assessment',
+            'color' => 'sky',
+            'icon' => 'heroicon-o-user-group',
+        ],
+    ],
+
+
     /* enable qrcode */
     "enable-qrcode"=>true,
 

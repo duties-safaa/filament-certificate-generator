@@ -10,6 +10,8 @@ class FilamentCertificateGeneratorPlugin implements Plugin
 {
     private $enableAuthorScope = false;
 
+    protected $configCallback = null;
+
     public function getId(): string
     {
         return 'filament-certificate-generator';
@@ -38,8 +40,25 @@ class FilamentCertificateGeneratorPlugin implements Plugin
             ->resources([
                 CertificateTemplateResource::class,
             ])
-            ;
+        ;
     }
+    public function configureUsing(callable $callback): self
+    {
+        $this->configCallback = $callback;
+        return $this;
+    }
+
+    public function getEditorOptions(): array
+    {
+        if ($this->configCallback) {
+            return call_user_func($this->configCallback);
+        }
+
+        return config('certificate-generator.default_options', []);
+    }
+
+
+
 
     public function boot(Panel $panel): void
     {

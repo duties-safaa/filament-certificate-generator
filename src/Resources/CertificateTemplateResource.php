@@ -12,6 +12,7 @@ use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use HusamTariq\FilamentCertificateGenerator\FilamentCertificateGeneratorPlugin;
 use HusamTariq\FilamentCertificateGenerator\Models\CertificateTemplate;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
@@ -56,8 +57,8 @@ class CertificateTemplateResource extends Resource
         return $form
             ->columns(1)
             ->schema([
-               TextInput::make("name")->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
-               FileUpload::make("image")->image()->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
+                TextInput::make("name")->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
+                FileUpload::make("image")->image()->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
                 FileUpload::make('font')->label(__("filament-certificate-generator::certificate-generator.resource.certificate-font"))
                     ->preserveFilenames()
             ]);
@@ -70,8 +71,8 @@ class CertificateTemplateResource extends Resource
 
             ->columns([
 
-                    Tables\Columns\ImageColumn::make("image")->height(100)->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
-                    Tables\Columns\TextColumn::make("name")->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
+                Tables\Columns\ImageColumn::make("image")->height(100)->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
+                Tables\Columns\TextColumn::make("name")->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
 
             ])
             ->filters([
@@ -83,15 +84,12 @@ class CertificateTemplateResource extends Resource
                     TextInput::make("name")->required(),
                     CertificateEditor::make("data")->label(__("filament-certificate-generator::certificate-generator.resource.certificate-data"))
                         ->imageURL(fn($record)=>Storage::disk("public")->url($record->image))
-                        ->width(850)->options([
-                            "StudentArabicName"=>"اسم الطالب عربي",
-                            "StudentEnglishName"=>"اسم الطالب انجليزي",
-                            "TrainerArabicName"=>"اسم المدرب عربي",
-                            "TrainerEnglishName"=>"اسم المدرب انجليزي",
-                            "Hours"=>"Hours",
-                        ])
-                    ,
+                        ->width(850)
+                        ->options(
+                            FilamentCertificateGeneratorPlugin::get()->getEditorOptions()
+                        ),
                 ]) ,
+
                 DownloadCertificateAction::make()->certificateName(fn($record)=>$record?->name),
                 /*Tables\Actions\Action::make("rrr")->action(function ($record){
                     $defaultConfig = (new ConfigVariables())->getDefaults();
@@ -112,6 +110,7 @@ class CertificateTemplateResource extends Resource
                         'fontDir' => array_merge($fontDirs, [
                             public_path("storage"),
                         ]),
+
                         'fontdata' => $fontData + [
                                 'din-next' => [
 
@@ -172,6 +171,7 @@ class CertificateTemplateResource extends Resource
     {
         return parent::getEloquentQuery()->mine(filament('filament-certificate-generator')->hasAuthorScope())->orderBy("created_at","desc");
     }
+
 
     public static function getPages(): array
     {
