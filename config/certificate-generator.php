@@ -22,16 +22,16 @@ return [
 
     'types' => [
         'qualification' => [
-            'label' => 'Qualification Certification',
+            'label' =>'Qualification Certification',
             'description' => 'Formal attestation of completed academic requirements conferring a degree, diploma, or formal qualification',
-            'color' => 'emerald',
+            'color' => 'success',
             'icon' => 'heroicon-o-academic-cap',
         ],
 
         'participation' => [
-            'label' => 'Participation Attestation',
+            'label' =>'Participation Attestation',
             'description' => 'Verification of attendance and engagement in learning activities without formal assessment',
-            'color' => 'sky',
+            'color' => 'warning',
             'icon' => 'heroicon-o-user-group',
         ],
     ],

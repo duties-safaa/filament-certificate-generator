@@ -13,7 +13,7 @@ class CertificateTemplate extends Model implements HasCertificate
     use HasFactory;
     use HasUuids;
 
-    protected $fillable=["name","image","author_id","author_type","data","font"];
+    protected $fillable=["name","image","author_id","author_type","data","font","default","type"];
 
     protected $casts=[
         "data"=>"array"
@@ -33,13 +33,13 @@ class CertificateTemplate extends Model implements HasCertificate
 
     public function getCertificateValues(): array
     {
-       return[
-           "StudentArabicName"=>"حسام طارق عبدالرحمن الشيباني",
-           "StudentEnglishName"=>"HUSSAM TAREQ ABDULRAHMAN",
-           "TrainerArabicName"=>"ادارة مشاريع احترافية",
-           "TrainerEnglishName"=>"Trainer English Name",
-           "Hours"=>"مروان القدسي",
-       ];
+        return[
+            "StudentArabicName"=>"حسام طارق عبدالرحمن الشيباني",
+            "StudentEnglishName"=>"HUSSAM TAREQ ABDULRAHMAN",
+            "TrainerArabicName"=>"ادارة مشاريع احترافية",
+            "TrainerEnglishName"=>"Trainer English Name",
+            "Hours"=>"مروان القدسي",
+        ];
     }
 
     public function getCertificateTemplate(): CertificateTemplate

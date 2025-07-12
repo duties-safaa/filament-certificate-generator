@@ -3,24 +3,22 @@
 namespace HusamTariq\FilamentCertificateGenerator\Resources;
 
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Support\Facades\FilamentIcon;
-use HusamTariq\FilamentCertificateGenerator\Actions\Table\DownloadCertificateAction;
-use HusamTariq\FilamentCertificateGenerator\Components\CertificateEditor;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
-use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use HusamTariq\FilamentCertificateGenerator\Actions\Table\DownloadCertificateAction;
+use HusamTariq\FilamentCertificateGenerator\Components\CertificateEditor;
 use HusamTariq\FilamentCertificateGenerator\FilamentCertificateGeneratorPlugin;
 use HusamTariq\FilamentCertificateGenerator\Models\CertificateTemplate;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
-use Mpdf\Config\ConfigVariables;
-use Mpdf\Config\FontVariables;
-use Mpdf\Mpdf;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat\Wizard\Date;
+use Illuminate\Support\Facades\Config;
+
 
 class CertificateTemplateResource extends Resource
 {
@@ -37,7 +35,6 @@ class CertificateTemplateResource extends Resource
     }
 
 
-
     /**
      * @return string
      */
@@ -46,7 +43,7 @@ class CertificateTemplateResource extends Resource
         return __("filament-certificate-generator::certificate-generator.resource.singular");
     }
 
-    public static function getNavigationIcon(): string | Htmlable | null
+    public static function getNavigationIcon(): string|Htmlable|null
     {
         return 'certificate-icon';
     }
@@ -60,7 +57,13 @@ class CertificateTemplateResource extends Resource
                 TextInput::make("name")->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
                 FileUpload::make("image")->image()->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
                 FileUpload::make('font')->label(__("filament-certificate-generator::certificate-generator.resource.certificate-font"))
-                    ->preserveFilenames()
+                    ->preserveFilenames(),
+                Select::make('type')
+                    ->required()
+                    ->options(self::getTypeOptions())
+                    ->default(config('certificate-generator.default_type', 'qualification'))
+                    ->label(__('filament-certificate-generator::certificate-generator.resource.certificate-type')),
+                Toggle::make('default')->label(__("filament-certificate-generator::certificate-generator.resource.certificate-default"))
             ]);
     }
 
@@ -68,12 +71,20 @@ class CertificateTemplateResource extends Resource
     {
 
         return $table
-
             ->columns([
 
                 Tables\Columns\ImageColumn::make("image")->height(100)->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
                 Tables\Columns\TextColumn::make("name")->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
-
+                Tables\Columns\TextColumn::make('type')
+                    ->formatStateUsing(fn ($state) => self::getTypeDisplay($state))
+                    ->badge()
+                    ->color(fn ($state) => config("certificate-generator.types.$state.color", 'gray'))
+                    ->icon(fn ($state) => config("certificate-generator.types.$state.icon"))
+                    ->label(__('filament-certificate-generator::certificate-generator.resource.certificate-type'))
+                ,
+                Tables\Columns\IconColumn::make('default')
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-default"))
+                    ->boolean(),
             ])
             ->filters([
                 //
@@ -83,14 +94,14 @@ class CertificateTemplateResource extends Resource
                 Tables\Actions\EditAction::make("editor")->label("editor")->form([
                     TextInput::make("name")->required(),
                     CertificateEditor::make("data")->label(__("filament-certificate-generator::certificate-generator.resource.certificate-data"))
-                        ->imageURL(fn($record)=>Storage::disk("public")->url($record->image))
+                        ->imageURL(fn($record) => Storage::disk("public")->url($record->image))
                         ->width(850)
                         ->options(
                             FilamentCertificateGeneratorPlugin::get()->getEditorOptions()
                         ),
-                ]) ,
+                ]),
 
-                DownloadCertificateAction::make()->certificateName(fn($record)=>$record?->name),
+                DownloadCertificateAction::make()->certificateName(fn($record) => $record?->name),
                 /*Tables\Actions\Action::make("rrr")->action(function ($record){
                     $defaultConfig = (new ConfigVariables())->getDefaults();
                     $fontDirs = $defaultConfig['fontDir'];
@@ -169,10 +180,33 @@ class CertificateTemplateResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->mine(filament('filament-certificate-generator')->hasAuthorScope())->orderBy("created_at","desc");
+        return parent::getEloquentQuery()->mine(filament('filament-certificate-generator')->hasAuthorScope())->orderBy("created_at", "desc");
     }
 
+    private static function getTypeDisplay(string $typeKey, bool $forSelect = false): string|array
+    {
+        $types = config('certificate-generator.types');
 
+        $translatedLabel = match($typeKey) {
+            'qualification' => __('filament-certificate-generator::certificate-generator.resource.certificate-qualification'),
+            'participation' => __('filament-certificate-generator::certificate-generator.resource.certificate-participation'),
+            default => $types[$typeKey]['label'] ?? $typeKey
+        };
+
+        if ($forSelect) {
+            return [$typeKey => $translatedLabel];
+        }
+
+        return $translatedLabel;
+    }
+
+    private static function getTypeOptions(): array
+    {
+        $types = config('certificate-generator.types');
+        return collect(array_keys($types))
+            ->mapWithKeys(fn ($key) => self::getTypeDisplay($key, true))
+            ->toArray();
+    }
     public static function getPages(): array
     {
         return [
