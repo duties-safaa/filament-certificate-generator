@@ -92,6 +92,11 @@ class FilamentCertificateGeneratorServiceProvider extends PackageServiceProvider
 
     public function register()
     {
+        $this->app->bind(
+            \HusamTariq\FilamentCertificateGenerator\Concerns\HasCertificateTypes::class,
+            \HusamTariq\FilamentCertificateGenerator\Services\CertificateTypeService::class
+        );
+
         $this->callAfterResolving(Factory::class, function (Factory $factory) {
             $factory->add(static::$name, [
                 'path' => __DIR__ . '/../resources/svg',
