@@ -1,5 +1,44 @@
 const deleteIcon = "data:image/svg+xml,%3C%3Fxml version='1.0' encoding='utf-8'%3F%3E%3C!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.1//EN' 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3E%3Csvg version='1.1' id='Ebene_1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px' width='595.275px' height='595.275px' viewBox='200 215 230 470' xml:space='preserve'%3E%3Ccircle style='fill:%23F44336;' cx='299.76' cy='439.067' r='218.516'/%3E%3Cg%3E%3Crect x='267.162' y='307.978' transform='matrix(0.7071 -0.7071 0.7071 0.7071 -222.6202 340.6915)' style='fill:white;' width='65.545' height='262.18'/%3E%3Crect x='266.988' y='308.153' transform='matrix(0.7071 0.7071 -0.7071 0.7071 398.3889 -83.3116)' style='fill:white;' width='65.544' height='262.179'/%3E%3C/g%3E%3C/svg%3E";
 var drawer = null;
+
+function rgbToHex(rgb) {
+    const result = rgb.match(/\d+/g).map(Number);
+    return `#${((1 << 24) + (result[0] << 16) + (result[1] << 8) + result[2]).toString(16).slice(1).toUpperCase()}`;
+}
+function textToBase64Image(text, options = {}) {
+    const {
+        fontSize = 80,
+        fontFamily = 'Arial',
+        color = 'white',
+        backgroundColor  = rgbToHex(getComputedStyle(document.documentElement).getPropertyValue('--primary-600').trim()),
+        padding = 10,
+        width = 500,
+        height = 500
+    } = options;
+
+    // Create a canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+
+    // Set background color
+    context.fillStyle = backgroundColor;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Set text properties
+    context.font = `${fontSize}px ${fontFamily}`;
+    context.fillStyle = color;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+
+    // Draw text on canvas
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    // Convert canvas to base64 image
+    return canvas.toDataURL('image/png');
+}
+
 export default function certificateEditor({
                                               state,
                                               canvasData,
@@ -46,7 +85,7 @@ export default function certificateEditor({
                 self.canvas.getActiveObject().dirty = true;
                 if(self.canvas.getActiveObject().type==="i-text"){
                     self.canvas.getActiveObject().fill = this.value;
-                }else if(self.canvas.getActiveObject().type==="image"){
+                }else if(self.canvas.getActiveObject().type==="qr"){
                     self.canvas.getActiveObject().filters[0].color= this.value;
                     self.canvas.getActiveObject().applyFilters();
                 }
@@ -78,58 +117,77 @@ export default function certificateEditor({
 
             if (this.certData.length <= 0) {
                 let [key, value] = Object.entries(this.options)[0]
-                this.addText(key, value)
+                this.addText(key, value.name)
             } else {
                 this.certData.forEach(function (e) {
                     if (typeof e.value.startY !== 'undefined') {
-                       if(e.value.type==="text"){
-                           let text = new fabric.IText(options[e.key], {
-                               id: e.key,
-                               left: ((e.value.startY ?? canvasData.coefficient) / canvasData.coefficient),
-                               top: ((e.value.startX ?? canvasData.coefficient) / canvasData.coefficient),
-                               scaleX: e.value?.scaleX ?? 1,
-                               scaleY: e.value?.scaleY ?? 1,
-                               type: 'i-text',
-                               objectCaching: false,
-                               editable: false,
-                               //fontFamily: 'helvetica neue',
-                               fill: e.value?.color ?? '#000',
-                               stroke: '#fff',
-                               strokeWidth: .1,
-                               fontSize: 45,
-                           });
-                           canvas.add(text);
-                           text.on('selected', function () {
-                               ITextColor.value = text.fill;
-                           });
-                       }else if(e.value.type==="qr"){
-                           fabric.Image.fromURL("/certificate-generator/qr/n/n/n", function(img) {
-                               var oImg = img.set({
-                                   id: "qr",
-                                   left: ((e.value.startY ?? canvasData.coefficient) / canvasData.coefficient),
-                                   top: ((e.value.startX ?? canvasData.coefficient) / canvasData.coefficient),
-                                   scaleX: e.value?.scaleX ?? 1,
-                                   scaleY: e.value?.scaleY ?? 1,
-                                   angle: 0,
-                                   border: '#000',
-                                   stroke: '#fff',
-                                   strokeWidth: .1,
-                               });
-                               oImg.setControlVisible('mtr',false)
-                               oImg.setControlVisible('mb',false)
-                               oImg.setControlVisible('mt',false)
-                               oImg.setControlVisible('ml',false)
-                               oImg.setControlVisible('mr',false)
-                               let f = fabric.Image.filters
-                               oImg.filters[0]=new f.BlendColor({
-                                   color: e.value?.color ??"#000000",
-                                   mode: "add",
-                                   alpha: 1
-                               })
-                               oImg.applyFilters()
-                               canvas.add(oImg).renderAll();
-                           });
-                       }
+                        if(e.value.type==="text"){
+                            let key = e.key.split('-')[0]
+                            let text = new fabric.IText(options[key].name, {
+                                id: e.key,
+                                left: ((e.value.startY ?? canvasData.coefficient) / canvasData.coefficient),
+                                top: ((e.value.startX ?? canvasData.coefficient) / canvasData.coefficient),
+                                scaleX: e.value?.scaleX ?? 1,
+                                scaleY: e.value?.scaleY ?? 1,
+                                type: 'i-text',
+                                objectCaching: false,
+                                editable: false,
+                                //fontFamily: 'helvetica neue',
+                                fill: e.value?.color ?? '#000',
+                                stroke: '#fff',
+                                strokeWidth: .1,
+                                fontSize: 45,
+                            });
+                            canvas.add(text);
+                            text.on('selected', function () {
+                                ITextColor.value = text.fill;
+                            });
+                        }else if(e.value.type==="qr"){
+                            fabric.Image.fromURL("/img/qr.png", function(img) {
+                                var oImg = img.set({
+                                    id: "qr",
+                                    type: "qr",
+                                    left: ((e.value.startY ?? canvasData.coefficient) / canvasData.coefficient),
+                                    top: ((e.value.startX ?? canvasData.coefficient) / canvasData.coefficient),
+                                    scaleX: e.value?.scaleX ?? 1,
+                                    scaleY: e.value?.scaleY ?? 1,
+                                    angle: 0,
+                                    border: '#000',
+                                    stroke: '#fff',
+                                    strokeWidth: .1,
+                                });
+                                oImg.setControlVisible('mtr',false)
+                                oImg.setControlVisible('mb',false)
+                                oImg.setControlVisible('mt',false)
+                                oImg.setControlVisible('ml',false)
+                                oImg.setControlVisible('mr',false)
+                                let f = fabric.Image.filters
+                                oImg.filters[0]=new f.BlendColor({
+                                    color: e.value?.color ??"#000000",
+                                    mode: "add",
+                                    alpha: 1
+                                })
+                                oImg.applyFilters()
+                                canvas.add(oImg).renderAll();
+                            });
+                        }else if(e.value.type==="image"){
+                            let key = e.key.split('-')[0]
+                            let text2image=textToBase64Image(options[key].name)
+                            fabric.Image.fromURL(text2image, function(img) {
+                                var oImg = img.set({
+                                    id: e.key,
+                                    left: ((e.value.startY ?? canvasData.coefficient) / canvasData.coefficient),
+                                    top: ((e.value.startX ?? canvasData.coefficient) / canvasData.coefficient),
+                                    scaleX: e.value?.scaleX ?? 1,
+                                    scaleY: e.value?.scaleY ?? 1,
+                                    angle: 0,
+                                    border: '#000',
+                                    stroke: '#fff',
+                                    strokeWidth: .1,
+                                });
+                                canvas.add(oImg).renderAll();
+                            });
+                        }
                     }
                 })
             }
@@ -145,18 +203,39 @@ export default function certificateEditor({
                 self.state[e.target['id']]['scaleX'] = e.target['scaleX'];
             });
             this.canvas.on('selection:created', function (e) {
-                if (e.selected[0].type === 'i-text' ) {
+                let index = e.selected.length - 1;
+                if (e.selected[index].type === 'i-text' ) {
                     document.getElementById('textControls').hidden = false;
-                    ITextColor.value = e.selected[0].fill;
-                }else if(e.selected[0].type === 'image'){
+                    ITextColor.value = e.selected[index].fill;
+                }else if(e.selected[index].type === 'qr'){
                     document.getElementById('textControls').hidden = false;
-                    ITextColor.value = e.selected[0].filters[0].color;
+                    try{
+                        ITextColor.value = e.selected[index].filters[index].color;
+                    }catch (e) {
+
+                    }
                 }
             });
-            this.canvas.on('before:selection:cleared', function (e) {
-                if (e.target.type === 'i-text' || e.target.type === 'image') {
+            this.canvas.on('selection:updated', function (e) {
+                let index = e.selected.length - 1;
+                if (e.selected[index].type === 'i-text' ) {
+                    document.getElementById('textControls').hidden = false;
+                    ITextColor.value = e.selected[index].fill;
+                }else if(e.selected[index].type === 'qr'){
+                    document.getElementById('textControls').hidden = false;
+                    try{
+                        ITextColor.value = e.selected[index].filters[index].color;
+                    }catch (e) {
+
+                    }
+                }else{
                     document.getElementById('textControls').hidden = true;
                 }
+            });
+            this.canvas.on('selection:cleared', function (e) {
+                //   if (e.target.type === 'i-text' || e.target.type === 'image') {
+                document.getElementById('textControls').hidden = true;
+                //   }
             });
             this.canvas.on('object:modified', function (e) {
                 self.state[e.target['id']]['scale'] = canvasData.coefficient;
@@ -185,10 +264,12 @@ export default function certificateEditor({
         addText: function (id, text) {
             let state = this.state ?? {}
             var isExist = false
-            drawer._objects.forEach(function (e) {
-                if (e['id'] === id)
-                    isExist = true;
-            })
+            id = id +"-"+ Math.random().toString(36).substring(7);
+
+            /* drawer._objects.forEach(function (e) {
+                 if (e['id'] === id)
+                     isExist = true;
+             })*/
             if (isExist === false) {
                 let e = new fabric.IText(text, {
                     id: id,
@@ -225,11 +306,12 @@ export default function certificateEditor({
             })
             if (isExist === false) {
                 var self = this;
-                fabric.Image.fromURL("/certificate-generator/qr/n/n/n", function(img) {
-                   var oImg = img.set({
+                fabric.Image.fromURL("/img/qr.png", function(img) {
+                    var oImg = img.set({
                         id: "qr",
                         left: 0,
                         top: 0,
+                        type:"qr",
                         angle: 0,
                         border: '#000',
                         stroke: '#fff',
@@ -255,6 +337,47 @@ export default function certificateEditor({
                         'width': ((self.canvasData.coefficient * oImg['width']) * oImg['scaleX']),
                         'height': ((self.canvasData.coefficient * oImg['height']) * oImg['scaleY']),
                         'type': "qr",
+                        'scaleY': oImg['scaleY'],
+                        'scaleX': oImg['scaleX'],
+                    };
+                    self.state = state
+                });
+
+
+
+            }
+
+        },addImage:  function  (id,text)  {
+            id = id +"-"+ Math.random().toString(36).substring(7);
+            let state = this.state ?? {}
+            var isExist = false
+            /*  drawer._objects.forEach(function (e) {
+                  if (e['id'] === id)
+                      isExist = true;
+              })
+      */
+            if (isExist === false) {
+                var self = this;
+                let text2image=textToBase64Image(text)
+                fabric.Image.fromURL(text2image, function(img) {
+                    var oImg = img.set({
+                        id: id,
+                        left: 0,
+                        top: 0,
+                        angle: 0,
+                        border: '#000',
+                        stroke: '#fff',
+                        strokeWidth: .1,
+                    }).scale(0.2);
+
+                    drawer.add(oImg).renderAll();
+                    state[id] = {
+                        'startY': (self.canvasData.coefficient * oImg['left']),
+                        'startX': (self.canvasData.coefficient * oImg['top']),
+                        'scale': (self.canvasData.coefficient),
+                        'width': ((self.canvasData.coefficient * oImg['width']) * oImg['scaleX']),
+                        'height': ((self.canvasData.coefficient * oImg['height']) * oImg['scaleY']),
+                        'type': "image",
                         'scaleY': oImg['scaleY'],
                         'scaleX': oImg['scaleX'],
                     };
