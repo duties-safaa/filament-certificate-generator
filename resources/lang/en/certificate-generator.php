@@ -15,6 +15,7 @@ return [
     ],
     "actions"=>[
         "download-certificate"=>"Download Certificate",
+        "editor"=>"Editor",
     ],
 
 ];

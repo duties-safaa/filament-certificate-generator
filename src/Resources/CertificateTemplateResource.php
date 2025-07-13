@@ -12,32 +12,27 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use HusamTariq\FilamentCertificateGenerator\Actions\Table\DownloadCertificateAction;
 use HusamTariq\FilamentCertificateGenerator\Components\CertificateEditor;
+use HusamTariq\FilamentCertificateGenerator\Concerns\HasCertificateTypes;
 use HusamTariq\FilamentCertificateGenerator\FilamentCertificateGeneratorPlugin;
 use HusamTariq\FilamentCertificateGenerator\Models\CertificateTemplate;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Config;
-
 
 class CertificateTemplateResource extends Resource
 {
     protected static ?string $model = CertificateTemplate::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    /**
-     * @return string|null
-     */
+    public function __construct(
+        protected HasCertificateTypes $certificateTypeService
+    ) {}
+
     public static function getPluralLabel(): ?string
     {
         return __("filament-certificate-generator::certificate-generator.resource.plural");
     }
 
-
-    /**
-     * @return string
-     */
     public static function getModelLabel(): string
     {
         return __("filament-certificate-generator::certificate-generator.resource.singular");
@@ -48,46 +43,73 @@ class CertificateTemplateResource extends Resource
         return 'certificate-icon';
     }
 
-
     public static function form(Form $form): Form
     {
+        $typeService = app(HasCertificateTypes::class);
+
         return $form
             ->columns(1)
             ->schema([
-                TextInput::make("name")->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
-                FileUpload::make("image")->image()->required()->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
-                FileUpload::make('font')->label(__("filament-certificate-generator::certificate-generator.resource.certificate-font"))
-                    ->preserveFilenames(),
+                TextInput::make("name")
+                    ->required()
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
+                FileUpload::make("image")
+                    ->image()
+                    ->required()
+                    ->directory('certificate-templates')
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
+                FileUpload::make('font')
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-font"))
+                    ->directory('certificate-fonts')
+                    ->preserveFilenames()
+                    ->acceptedFileTypes(['application/octet-stream', 'application/x-font-ttf', 'application/x-font-truetype', 'font/ttf']),
                 Select::make('type')
                     ->required()
-                    ->options(self::getTypeOptions())
+                    ->options($typeService->getTypeOptions())
                     ->default(config('certificate-generator.default_type', 'qualification'))
                     ->label(__('filament-certificate-generator::certificate-generator.resource.certificate-type')),
-                Toggle::make('default')->label(__("filament-certificate-generator::certificate-generator.resource.certificate-default"))
+                Toggle::make('default')
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-default"))
+                    ->afterStateUpdated(function ($state, $set) {
+                        if ($state) {
+                            $set('default', true);
+                        }
+                    })
             ]);
     }
 
     public static function table(Table $table): Table
     {
+        $typeService = app(HasCertificateTypes::class);
 
         return $table
             ->columns([
-
-                Tables\Columns\ImageColumn::make("image")->height(100)->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
-                Tables\Columns\TextColumn::make("name")->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
+                Tables\Columns\ImageColumn::make("image")
+                    ->height(100)
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-image")),
+                Tables\Columns\TextColumn::make("name")
+                    ->searchable()
+                    ->sortable()
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-name")),
                 Tables\Columns\TextColumn::make('type')
-                    ->formatStateUsing(fn ($state) => self::getTypeDisplay($state))
+                    ->formatStateUsing(fn ($state) => $typeService->getTypeDisplay($state))
                     ->badge()
-                    ->color(fn ($state) => config("certificate-generator.types.$state.color", 'gray'))
-                    ->icon(fn ($state) => config("certificate-generator.types.$state.icon"))
-                    ->label(__('filament-certificate-generator::certificate-generator.resource.certificate-type'))
-                ,
+                    ->color(fn ($state) => $typeService->getTypeColor($state))
+                    ->icon(fn ($state) => $typeService->getTypeIcon($state))
+                    ->searchable()
+                    ->sortable()
+                    ->label(__('filament-certificate-generator::certificate-generator.resource.certificate-type')),
                 Tables\Columns\IconColumn::make('default')
                     ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-default"))
-                    ->boolean(),
+                    ->boolean()
+                    ->sortable(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('type')
+                    ->options(fn () => app(HasCertificateTypes::class)->getTypeOptions())
+                    ->label(__('filament-certificate-generator::certificate-generator.resource.certificate-type')),
+                Tables\Filters\TernaryFilter::make('default')
+                    ->label(__("filament-certificate-generator::certificate-generator.resource.certificate-default"))
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -99,114 +121,30 @@ class CertificateTemplateResource extends Resource
                         ->options(
                             FilamentCertificateGeneratorPlugin::get()->getEditorOptions()
                         ),
-                ]),
+                ])->label(__('filament-certificate-generator::certificate-generator.actions.editor')),
+
 
                 DownloadCertificateAction::make()->certificateName(fn($record) => $record?->name),
-                /*Tables\Actions\Action::make("rrr")->action(function ($record){
-                    $defaultConfig = (new ConfigVariables())->getDefaults();
-                    $fontDirs = $defaultConfig['fontDir'];
-                    $defaultFontConfig = (new FontVariables())->getDefaults();
-                    $fontData = $defaultFontConfig['fontdata'];
-
-                    $size =  getimagesize(Storage::disk("public")->path($record->image));
-                    $width = $size[0];
-                    $height = $size[1];
-                    $mpdf = new Mpdf([
-                        'mode' => 'utf-8',
-                        'format' => [$width, $height],
-                        //  'orientation' => 'L',
-
-                        'autoArabic' => true,
-                        'autoLangToFont' => true,
-                        'fontDir' => array_merge($fontDirs, [
-                            public_path("storage"),
-                        ]),
-
-                        'fontdata' => $fontData + [
-                                'din-next' => [
-
-                                    'B' => $record->font,
-                                    'useOTL' => 0x80,
-                                    'useKashida' => 75,
-
-                                ]
-                            ],
-                        'default_font' => 'din-next'
-                    ]);
-
-                    // $mpdf->margin_header =10;
-                    $mpdf->SetDirectionality('rtl');
-
-                    // $file =file(public_path("pdf_template/cert.jpg"));
-
-                    $mpdf->autoArabic = true;
-                    $mpdf->AddPage();
-                    $mpdf->Image(Storage::disk("public")->path($record->image), 0,0,$width,$height,'jpg','',true, false);
-                    //$mpdf->SetDocTemplate(public_path("pdf_template/onlineCertificate.pdf"), true);
-                    //$mpdf->AddPage();
-                    //  $mpdf->RoundedRect(572.7383592017738,572.7383592017738,1386,50.849999999999994,0);
-                   foreach ( $record->data as $text){
-                     //  $mpdf->RoundedRect($text['startY'],$text['startX'],$text['width'],$text['height'],0);
-                       $mpdf->SetXY($text['startY'], $text['startX']+($text['height']/2));
-                       if(!empty($text['color'])) {
-                           list($r, $g, $b) = sscanf($text['color'], "#%02x%02x%02x");
-                           $mpdf->SetTextColor($r, $g, $b);
-                       }else {
-                           $mpdf->SetTextColor(0, 0, 0);
-                       }
-                      // $mpdf->WriteText( $text['width'], $text['height'], "حسام الشيباني");
-                       $mpdf->AutosizeText("حسام طارق عبدالرحمن الشيباني", $text['width'], "din-next", "B", $text['height']*2);
-
-                   }
-                    $mpdf->Image('http://ribu.test/api/qr', 0, 0, 500, 500, 'jpg', '', true, false);
-
-
-
-
-                    return  response()->streamDownload(function () use($record,$mpdf) {
-
-                        echo $mpdf->Output(  "serrr.pdf", "I");
-                    },'ssss.pdf');
-
-                }),*/
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->mine(filament('filament-certificate-generator')->hasAuthorScope())->orderBy("created_at", "desc");
+        return parent::getEloquentQuery()
+            ->when(
+                filament('filament-certificate-generator')->hasAuthorScope(),
+                fn ($query) => $query->mine()
+            )
+            ->orderBy("created_at", "desc");
     }
 
-    private static function getTypeDisplay(string $typeKey, bool $forSelect = false): string|array
-    {
-        $types = config('certificate-generator.types');
-
-        $translatedLabel = match($typeKey) {
-            'qualification' => __('filament-certificate-generator::certificate-generator.resource.certificate-qualification'),
-            'participation' => __('filament-certificate-generator::certificate-generator.resource.certificate-participation'),
-            default => $types[$typeKey]['label'] ?? $typeKey
-        };
-
-        if ($forSelect) {
-            return [$typeKey => $translatedLabel];
-        }
-
-        return $translatedLabel;
-    }
-
-    private static function getTypeOptions(): array
-    {
-        $types = config('certificate-generator.types');
-        return collect(array_keys($types))
-            ->mapWithKeys(fn ($key) => self::getTypeDisplay($key, true))
-            ->toArray();
-    }
     public static function getPages(): array
     {
         return [

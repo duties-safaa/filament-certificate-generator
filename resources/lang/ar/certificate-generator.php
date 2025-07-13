@@ -16,5 +16,6 @@ return [
     ],
     "actions"=>[
         "download-certificate"=>"تحميل الشهادة",
+        "editor"=>"محرر الشهادة"
     ],
 ];
